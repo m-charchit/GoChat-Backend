@@ -78,13 +78,10 @@ def get_data(data):
 def sendFile(data):
     request.namespace = ""
     request.sid = ""
-    print(data)
     if not current_user.is_anonymous and not userDeleted(data["user"]):
         block = Blocks.query.filter_by(user2=current_user.username).all()
-        print(block)
         for i in list(sids):
             if (sids[i] == data["user"] or sids[i] == current_user.username or ((sids[i][:len(sids[i]) - 12] == data["user"] or sids[i][:len(sids[i]) - 12] == current_user.username) and sids[i].endswith("user_contact"))) and sids[i] not in [i.user for  i in block]:
-                print(sids[i],print(i),"thisi is")
                 emit("file",data,room=i)
 
 
@@ -100,7 +97,6 @@ def typing(data):
 @socketio.on('idle')
 @authenticated_only
 def idle(data):
-    print(data)
     if not current_user.is_anonymous and current_user.status[0:4] != "Last":
         emit("user_idle",{"stat":data["status"],"username":current_user.username},broadcast=True)
 
@@ -132,7 +128,6 @@ def handle_change(data):
     if not current_user.is_anonymous:
         if current_user.username == data["current_user"]:
             block = Blocks.query.filter_by(user2=current_user.username).all()
-            print(data)
             for i in list(sids):
                 if sids[i] == data["user"] or sids[i] == current_user.username or ((sids[i][:len(sids[i]) - 12] == data["user"] or sids[i][:len(sids[i]) - 12] == current_user.username) and sids[i].endswith("user_contact")) and sids[i] not in [i.user for  i in block] :
                     emit("change_ok",{"user":current_user.username,"id":data["id"],"type":data["type"]},room=i) 
@@ -147,8 +142,6 @@ def handle_change(data):
                 db.session.delete(msg)
             elif data["type"] == "cur_d_me":
                 msg = Message.query.filter_by(id=data["id"],msg_type="right",username=current_user.username,get_user=data["user"]).first()
-
-                print(msg)
                 try:
                     if not Message.query.filter_by(id=int(data["id"])+1).first():
                         storage.delete(msg.msg.split("?")[0].split("/")[-1],firebase_user["idToken"])
@@ -189,13 +182,11 @@ def handle_message(data):
 @authenticated_only
 def handle_message(data):
     if not current_user.is_anonymous  and not userDeleted(data["user"]):
-        print(data)
         if data["user"] in [i.user2 for i in current_user.blocked_users]:
             return "You need to unblock to send messages to user!"
         if len(data["msg"]) < 2000:
             block = Blocks.query.filter_by(user2=current_user.username).all()
             rec_user = Detail.query.filter_by(username=data["user"]).first()
-            print(rec_user.status)
             msg = Message(msg=data["msg"],msg_type="right",get_user=data["user"],owner=current_user,time=datetime.utcnow())
             db.session.add(msg)
             if data["user"] not in [i.user for  i in block]:
@@ -205,17 +196,14 @@ def handle_message(data):
 
             for i in list(sids):
                 if (sids[i] == data["user"] or sids[i] == current_user.username or ((sids[i][:len(sids[i]) - 12] == data["user"] or sids[i][:len(sids[i]) - 12] == current_user.username) and sids[i].endswith("user_contact"))) and sids[i] not in [i.user for  i in block]:
-                    print(sids[i],sids[i] not in [i.user for  i in block])
-                    print(data,current_user.username)
                     user_stat = rec_user.status
                     emit('msg', {"msg":data["msg"],"user":current_user.username,"rec_user":rec_user.username,"status":rec_user.status,"date":format_date(),"id":msg.id} , room=i)
             if rec_user.status != "Online" and rec_user.status != "Idle" and data["user"] not in [i.user for  i in block]:
                     notification = {'message':f"{current_user.username} - {data['msg']}",'url':'https://charchit-chat.herokuapp.com/chat/' + current_user.username,'image':'https://img.icons8.com/ios/50/000000/weixing.png',"title":"New Message from ChatApp"}
-                    try:
-                        pushy.push(rec_user.notification_id,notification)
-                        print("sent")
-                    except Exception as e:
-                        print(e)
+                    # try:
+                    #     pushy.push(rec_user.notification_id,notification)
+                    # except Exception as e:
+                    #     print(e)
             db.session.commit()
             return "Message sent!"
         else:
@@ -238,7 +226,6 @@ def index():
         message = Message.query.filter_by(username=current_user.username,get_user=i.username).order_by(Message.id.desc()).first()
 
         msg = Message.query.filter(Message.username==current_user.username,Message.get_user==i.username,Message.time > current_user.last_active).all()
-        d = Message.query.filter(Message.username==current_user.username,Message.get_user==i.username).all()
         b.append(msg)    
         a.append(message)
     return render_template("users.html",users=users,msg=a,unseen_msg=b,blocked_users=[i.user2 for i in current_user.blocked_users])
@@ -280,12 +267,10 @@ def chat(user):
         elif request.form.get('no'):
             no = int(request.form.get('no'))
             msgs = Message.query.filter_by(username=current_user.username,get_user=User.username).order_by(Message.time).all()
-            print(len(msgs))
             if 0 <len(msgs) - no < 30 :
                 msgs = msgs[:len(msgs) -no]
             else:
                 msgs = msgs[len(msgs)- (no + 30) :len(msgs) - no]
-            print(msgs)
             a = {}
             for i in msgs:
                 a[i.id] = {"msg":i.msg,"msg_type":i.msg_type,"time":i.time,"user":i.username}
